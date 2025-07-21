@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom map marker styles */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-marker.current-location {
+  z-index: 1000 !important;
+}
+
+.custom-marker.driver-location {
+  z-index: 999 !important;
+}
+
+/* Leaflet popup styles */
+.leaflet-popup-content {
+  margin: 8px !important;
+  font-family: inherit !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px !important;
+}
+
+/* Ensure map controls are visible */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.leaflet-control-zoom a {
+  background: white !important;
+  color: #333 !important;
+  border: 1px solid #ccc !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #f8f9fa !important;
+}
+
+@layer base {
+  :root {
+    /* STACKD Color Palette */
+    --color-primary: 0 0 0;        /* Black */
+    --color-secondary: 255 215 0;  /* Gold */
+    --color-tertiary: 26 26 26;    /* Dark Gray */
+    --color-text: 255 255 255;     /* White */
+    --color-text-secondary: 229 229 229; /* Light Gray */
+    --color-success: 34 197 94;    /* Green */
+    --color-warning: 251 191 36;   /* Yellow */
+    --color-error: 239 68 68;      /* Red */
+    --color-info: 59 130 246;      /* Blue */
+    
+    /* Background colors */
+    --color-bg-primary: 0 0 0;
+    --color-bg-secondary: 26 26 26;
+    --color-bg-tertiary: 38 38 38;
+    
+    /* Border colors */
+    --color-border: 64 64 64;
+    --color-border-light: 38 38 38;
+    
+    /* Shadow colors */
+    --color-shadow: 0 0 0 0.1;
+    --color-shadow-gold: 255 215 0 0.2;
+  }
+
+  body {
+    @apply bg-primary text-text font-sans antialiased;
+    background: linear-gradient(135deg, rgb(var(--color-bg-primary)) 0%, rgb(var(--color-bg-secondary)) 100%);
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgb(var(--color-bg-secondary));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-secondary));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-secondary) / 0.8);
+  }
+}
+
+@layer components {
+  /* Button Styles */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply bg-secondary text-primary hover:bg-secondary/90 focus:ring-secondary/50 shadow-lg shadow-secondary/25;
+  }
+
+  .btn-secondary {
+    @apply bg-tertiary text-text border hover:bg-tertiary/80 focus:ring-text/50;
+  }
+
+  .btn-outline {
+    @apply border border-secondary text-secondary hover:bg-secondary hover:text-primary focus:ring-secondary/50;
+  }
+
+  .btn-ghost {
+    @apply text-text hover:bg-tertiary focus:ring-text/50;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-tertiary rounded-xl border border-gray-700 shadow-xl shadow-black/20;
+  }
+
+  .card-header {
+    @apply p-6 border-b border-gray-700;
+  }
+
+  .card-content {
+    @apply p-6;
+  }
+
+  .card-footer {
+    @apply p-6 border-t border-gray-700;
+  }
+
+  /* Input Styles */
+  .input {
+    @apply w-full rounded-lg border bg-tertiary px-3 py-2 text-text placeholder:text-text-secondary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all duration-200;
+  }
+
+  .input-error {
+    @apply border-error focus:border-error focus:ring-error/50;
+  }
+
+  /* Badge Styles */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-secondary text-primary;
+  }
+
+  .badge-secondary {
+    @apply bg-tertiary text-text border;
+  }
+
+  .badge-success {
+    @apply bg-success text-primary;
+  }
+
+  .badge-warning {
+    @apply bg-warning text-primary;
+  }
+
+  .badge-error {
+    @apply bg-error text-text;
+  }
+
+  /* Navigation Styles */
+  .nav-link {
+    @apply flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200;
+  }
+
+  .nav-link-active {
+    @apply bg-secondary text-primary;
+  }
+
+  .nav-link-inactive {
+    @apply text-text-secondary hover:text-text hover:bg-tertiary;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-t-secondary;
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-secondary to-yellow-400 bg-clip-text text-transparent;
+  }
+
+  /* Glass Effect */
+  .glass {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10;
+  }
+
+  /* Hover Effects */
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-1 hover:shadow-2xl hover:shadow-secondary/20;
+  }
+
+  /* Focus Styles */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2 focus:ring-offset-primary;
+  }
+}
+
+@layer utilities {
+  /* Custom utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-tertiary)) 100%);
+  }
+
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, rgb(var(--color-secondary)) 0%, rgb(var(--color-secondary) / 0.8) 100%);
+  }
+
+  .shadow-gold {
+    box-shadow: 0 4px 20px rgb(var(--color-secondary) / 0.3);
+  }
+
+  .border-gold {
+    border-color: rgb(var(--color-secondary));
+  }
+
+  .text-gold {
+    color: rgb(var(--color-secondary));
+  }
+
+  .bg-gold {
+    background-color: rgb(var(--color-secondary));
+  }
+}
