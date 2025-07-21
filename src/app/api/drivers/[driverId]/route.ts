@@ -58,10 +58,7 @@ export async function PATCH(
 }
 
 // GET - Get specific driver
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { driverId: string } }
-) {
+export async function GET(request: NextRequest, params: { params: { driverId: string } }) {
   try {
     const { driverId } = params;
 
