@@ -1,0 +1,40 @@
+# =============================================================================
+# Vercel environment variables
+# Add these in: Vercel Dashboard → Your Project → Settings → Environment Variables
+# Replace placeholder values; leave optional vars empty if not used.
+# =============================================================================
+
+# --- Required ---
+DATABASE_URL=
+NEXTAUTH_URL=
+NEXTAUTH_SECRET=
+
+# --- Recommended (public URLs) ---
+NEXT_PUBLIC_APP_URL=
+NEXT_PUBLIC_BASE_URL=
+
+# --- Auth (if using Google sign-in) ---
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# --- Optional: Redis (order notifications) ---
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# --- Optional: Seed API (production) ---
+SEED_SECRET=
+
+# --- Optional: SumUp ---
+SUMUP_API_KEY=
+SUMUP_MERCHANT_ID=
+SUMUP_MERCHANT_CODE=
+SUMUP_ACCESS_TOKEN=
+SUMUP_ENVIRONMENT=
+
+# --- Optional: Stripe ---
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+# --- Optional: SEO ---
+GOOGLE_SITE_VERIFICATION=

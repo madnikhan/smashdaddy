@@ -7,7 +7,6 @@ import {
   TrendingUp, 
   DollarSign,
   Package,
-  Users,
   ChefHat,
   Settings,
   Menu,
@@ -321,4 +320,3 @@ export default function RestaurantDashboard() {
     </div>
   );
 }
-
