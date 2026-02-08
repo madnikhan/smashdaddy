@@ -129,7 +129,10 @@ export async function PUT(
     });
 
     // Broadcast to kitchen panel
-    broadcastNotification({ type: 'order_update', orderId });
+    // Broadcast notification (non-blocking)
+    broadcastNotification({ type: 'order_update', orderId }).catch((error) => {
+      console.error('[OrderStatusAPI] Failed to broadcast notification (non-critical):', error);
+    });
 
     // Log status change
     console.log(`Order ${orderId} status updated to ${mappedStatus} by staff ${staffId || 'unknown'}`);
@@ -206,9 +209,10 @@ export async function GET(
 // PATCH - Update order status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
+    const { orderId } = await params;
     const body = await request.json();
     const { status } = body;
 
@@ -229,7 +233,7 @@ export async function PATCH(
     }
 
     const order = await prisma.order.update({
-      where: { id: params.orderId },
+      where: { id: orderId },
       data: { 
         status: status.toUpperCase(),
         updatedAt: new Date(),

@@ -161,7 +161,17 @@ export default function OrderPage() {
 
       const result = await response.json();
       console.log('Success response:', result);
-      setOrderNumber(result.order.orderNumber);
+      console.log('Order number from response:', result.order?.orderNumber);
+      
+      // Set order number - check multiple possible response structures
+      const orderNum = result.order?.orderNumber || result.orderNumber;
+      if (orderNum) {
+        console.log('Setting order number:', orderNum);
+        setOrderNumber(orderNum);
+      } else {
+        console.error('No order number found in response:', result);
+      }
+      
       setOrderSuccess(true);
       
       // Clear cart after successful order
@@ -206,16 +216,41 @@ export default function OrderPage() {
             <p>We&apos;ll send updates to {customerDetails.email}</p>
           </div>
           <div className="mt-8 space-y-3">
-            <Link href="/menu">
-              <Button variant="primary" className="w-full">
-                Order Again
-              </Button>
-            </Link>
-            <Link href="/">
-              <Button variant="outline" className="w-full">
-                Back to Home
-              </Button>
-            </Link>
+            {orderNumber ? (
+              <>
+                <Link href={`/track/${orderNumber}`}>
+                  <Button variant="primary" className="w-full text-lg py-3">
+                    📍 Track Your Order
+                  </Button>
+                </Link>
+                <Link href="/menu">
+                  <Button variant="outline" className="w-full">
+                    Order Again
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button variant="outline" className="w-full">
+                    Back to Home
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-400 mb-3">
+                  ⚠️ Order number not available. Please check the console or contact support.
+                </div>
+                <Link href="/menu">
+                  <Button variant="primary" className="w-full">
+                    Order Again
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button variant="outline" className="w-full">
+                    Back to Home
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </Card>
       </div>
@@ -249,6 +284,9 @@ export default function OrderPage() {
               </Link>
               <Link href="/contact" className="nav-link-inactive">
                 Contact
+              </Link>
+              <Link href="/track" className="nav-link-inactive">
+                Track Order
               </Link>
               <Link href="/order" className="nav-link-active">
                 Order Now
@@ -311,6 +349,13 @@ export default function OrderPage() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Contact
+                </Link>
+                <Link 
+                  href="/track" 
+                  className="block px-3 py-2 text-text hover:text-secondary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Track Order
                 </Link>
                 <Link 
                   href="/order" 

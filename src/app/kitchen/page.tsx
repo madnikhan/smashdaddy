@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
+import InstallPrompt from '@/components/InstallPrompt';
 import { Flame, Leaf } from 'lucide-react';
 
 interface OrderItem {
@@ -61,6 +62,7 @@ export default function KitchenPage() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const prevOrderIds = useRef<Set<string>>(new Set<string>());
 
   // Update 'now' every second for live timers
@@ -72,11 +74,35 @@ export default function KitchenPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/orders?limit=50');
+      const res = await fetch('/api/orders?limit=50').catch((fetchError) => {
+        // Handle network errors
+        console.error('[KitchenPanel] Network error fetching orders:', fetchError);
+        throw fetchError;
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || res.statusText };
+        }
+        console.error('[KitchenPanel] API error:', res.status, res.statusText, errorData);
+        setFetchError(`Failed to fetch orders: ${res.status} ${res.statusText}`);
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
       console.log('[KitchenPanel] Raw API response:', data);
+      
       if (data.success) {
-        const filtered = data.orders.filter((o: any) => ['PENDING', 'PREPARING'].includes(o.status.toUpperCase()))
+        // Clear any previous fetch errors on success
+        setFetchError(null);
+        
+        const filtered = data.orders.filter((o: any) => ['PENDING', 'PREPARING'].includes(o.status?.toUpperCase() || ''))
           .map((order: any) => ({
             ...order,
             items: order.items.map((item: any) => ({
@@ -92,10 +118,18 @@ export default function KitchenPage() {
         setOrders(filtered);
       } else {
         console.error('[KitchenPanel] API did not return success:', data);
+        setFetchError('Failed to fetch orders. Please try refreshing the page.');
         setOrders([]);
       }
     } catch (e) {
-      console.error('[KitchenPanel] Error fetching orders:', e);
+      // Handle network errors and other exceptions
+      if (e instanceof TypeError && e.message === 'Failed to fetch') {
+        console.error('[KitchenPanel] Network error: Unable to fetch orders. Check your connection.');
+        setFetchError('Unable to connect to server. Please check your internet connection and ensure the server is running.');
+      } else {
+        console.error('[KitchenPanel] Error fetching orders:', e);
+        setFetchError('An error occurred while fetching orders. Please try refreshing the page.');
+      }
       setOrders([]);
     } finally {
       setLoading(false);
@@ -110,14 +144,48 @@ export default function KitchenPage() {
   }, []);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    const res = await fetch(`/api/orders/${orderId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    const data = await res.json();
-    console.log('[KitchenPanel] Status update response:', data);
-    // No need to fetchOrders here; SSE will update
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      }).catch((fetchError) => {
+        console.error('[KitchenPanel] Network error updating order status:', fetchError);
+        throw fetchError;
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || res.statusText };
+        }
+        console.error('[KitchenPanel] Failed to update order status:', res.status, res.statusText, errorData);
+        setFetchError(`Failed to update order status: ${res.status} ${res.statusText}`);
+        return;
+      }
+
+      const data = await res.json();
+      console.log('[KitchenPanel] Status update response:', data);
+      
+      // Clear error on success
+      if (data.success) {
+        setFetchError(null);
+      }
+      
+      // Refresh orders after status update
+      fetchOrders();
+    } catch (e) {
+      if (e instanceof TypeError && e.message === 'Failed to fetch') {
+        console.error('[KitchenPanel] Network error updating order status');
+        setFetchError('Unable to connect to server. Please check your connection.');
+      } else {
+        console.error('[KitchenPanel] Error updating order status:', e);
+        setFetchError('An error occurred while updating order status.');
+      }
+    }
   };
 
   const toggleExpand = (orderId: string) => {
@@ -125,8 +193,33 @@ export default function KitchenPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <h1 className="text-4xl font-bold mb-8 text-gradient">Kitchen Display - SmashDaddy</h1>
+    <>
+      <InstallPrompt />
+      <div className="min-h-screen bg-black text-white p-6">
+        <h1 className="text-4xl font-bold mb-8 text-gradient">Kitchen Display - SmashDaddy</h1>
+      
+      {/* Error Alert */}
+      {fetchError && (
+        <div className="bg-yellow-600 text-white px-6 py-4 rounded-lg mb-6 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <p className="font-semibold">Connection Issue</p>
+              <p className="text-sm text-yellow-100">{fetchError}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFetchError(null);
+              fetchOrders();
+            }}
+            className="px-4 py-2 bg-yellow-700 hover:bg-yellow-800 rounded transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      
       {loading ? (
         <div className="text-center text-lg">Loading orders...</div>
       ) : orders.length === 0 ? (
@@ -234,6 +327,7 @@ export default function KitchenPage() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 } 

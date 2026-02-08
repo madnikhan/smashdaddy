@@ -1,21 +1,56 @@
 {
-  "name": "MyWebSite",
-  "short_name": "MySite",
+  "name": "SmashDaddy - Restaurant Management",
+  "short_name": "SmashDaddy",
+  "description": "SmashDaddy restaurant management system - Order management, kitchen panel, driver dashboard, and till system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#FF6B35",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
-  "theme_color": "#020202",
-  "background_color": "#020202",
-  "display": "standalone"
+  "categories": ["food", "business", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Menu",
+      "short_name": "Menu",
+      "description": "View menu items",
+      "url": "/menu",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kitchen",
+      "short_name": "Kitchen",
+      "description": "Kitchen panel",
+      "url": "/kitchen",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Driver",
+      "short_name": "Driver",
+      "description": "Driver dashboard",
+      "url": "/driver",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Till",
+      "short_name": "Till",
+      "description": "Till system",
+      "url": "/till",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    }
+  ]
 }

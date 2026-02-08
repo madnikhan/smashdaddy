@@ -3,6 +3,7 @@
 import React from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import InstallPrompt from "@/components/InstallPrompt";
 import { 
   Utensils, 
   Truck, 
@@ -27,6 +28,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      <InstallPrompt />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -52,6 +54,9 @@ export default function HomePage() {
               </Link>
               <Link href="/contact" className="nav-link-inactive">
                 Contact
+              </Link>
+              <Link href="/track" className="nav-link-inactive">
+                Track Order
               </Link>
               <Link href="/order" className="nav-link-inactive">
                 Order Now
@@ -114,6 +119,13 @@ export default function HomePage() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Contact
+                </Link>
+                <Link 
+                  href="/track" 
+                  className="block px-3 py-2 text-text hover:text-secondary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Track Order
                 </Link>
                 <Link 
                   href="/order" 

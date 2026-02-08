@@ -1,6 +1,6 @@
 "use client";
 import TillLayout from "./layout";
-import { TillPage } from "./page";
+import TillPage from "./page";
 import TillHeaderClient from "./TillHeaderClient";
 import { useState } from "react";
 
@@ -13,10 +13,7 @@ export default function TillPageWrapper() {
         <div className="flex justify-end mb-2">
           <TillHeaderClient onShowFilters={() => setShowAdvancedFilters(true)} />
         </div>
-        <TillPage
-          showAdvancedFilters={showAdvancedFilters}
-          setShowAdvancedFilters={setShowAdvancedFilters}
-        />
+        <TillPage />
       </div>
     </TillLayout>
   );

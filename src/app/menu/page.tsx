@@ -266,6 +266,9 @@ export default function MenuPage() {
               <Link href="/contact" className="nav-link-inactive">
                 Contact
               </Link>
+              <Link href="/track" className="nav-link-inactive">
+                Track Order
+              </Link>
               <Link href="/order" className="nav-link-inactive">
                 Order Now
               </Link>
@@ -327,6 +330,13 @@ export default function MenuPage() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Contact
+                </Link>
+                <Link 
+                  href="/track" 
+                  className="block px-3 py-2 text-text hover:text-secondary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Track Order
                 </Link>
                 <Link 
                   href="/order" 
@@ -524,9 +534,27 @@ export default function MenuPage() {
                   return (
                     <Card key={item.id} className="hover-lift overflow-hidden flex flex-col h-full">
                       {/* Image (if available) */}
-                      {item.image && (
-                        <div className="h-40 w-full bg-tertiary flex items-center justify-center overflow-hidden">
-                          <img src={item.image} alt={item.name} className="object-cover w-full h-full" />
+                      {item.image ? (
+                        <div className="h-48 w-full bg-tertiary flex items-center justify-center overflow-hidden relative">
+                          <img
+                            src={item.image.startsWith('http') ? item.image : `/menu-images/${item.image}`}
+                            alt={item.name}
+                            className="object-cover w-full h-full"
+                            onError={(e) => {
+                              // Fallback to placeholder if image fails to load
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = '<div class="h-48 w-full bg-gradient-to-br from-secondary/20 to-secondary/5 flex items-center justify-center"><span class="text-4xl opacity-50">🍔</span></div>';
+                              }
+                            }}
+                            loading="lazy"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-48 w-full bg-gradient-to-br from-secondary/20 to-secondary/5 flex items-center justify-center">
+                          <span className="text-4xl opacity-50">🍔</span>
                         </div>
                       )}
                       <div className="p-6 flex flex-col flex-1">

@@ -1,7 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function POST() {
+/** In production, require SEED_SECRET header to prevent abuse. */
+export async function POST(request: NextRequest) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const secret = process.env.SEED_SECRET;
+  if (isProduction && secret) {
+    const authHeader = request.headers.get('authorization');
+    const provided = authHeader?.replace(/^Bearer\s+/i, '') ?? request.headers.get('x-seed-secret') ?? '';
+    if (provided !== secret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   try {
     // Check if we already have menu items
     const existingItems = await prisma.menuItem.count();

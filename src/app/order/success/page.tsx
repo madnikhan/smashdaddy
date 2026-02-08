@@ -86,8 +86,15 @@ function OrderSuccessContent() {
         </div>
 
         <div className="space-y-3">
+          {orderNumber && (
+            <Link href={`/track/${orderNumber}`}>
+              <Button variant="primary" className="w-full">
+                Track Your Order
+              </Button>
+            </Link>
+          )}
           <Link href="/menu">
-            <Button variant="primary" className="w-full">
+            <Button variant={orderNumber ? "outline" : "primary"} className="w-full">
               Order Again
             </Button>
           </Link>

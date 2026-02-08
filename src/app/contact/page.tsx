@@ -70,6 +70,9 @@ export default function ContactPage() {
               <Link href="/contact" className="nav-link-active">
                 Contact
               </Link>
+              <Link href="/track" className="nav-link-inactive">
+                Track Order
+              </Link>
               <Link href="/order" className="nav-link-inactive">
                 Order Now
               </Link>
@@ -130,6 +133,13 @@ export default function ContactPage() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Contact
+                </Link>
+                <Link 
+                  href="/track" 
+                  className="block px-3 py-2 text-text hover:text-secondary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Track Order
                 </Link>
                 <Link 
                   href="/order" 

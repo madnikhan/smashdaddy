@@ -1,6 +1,36 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useState, useEffect, ReactNode } from 'react';
+
+// Error boundary component
+function ErrorBoundary({ children }: { children: ReactNode }) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = () => setHasError(true);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="text-center p-4">
+          <p className="text-gray-600 mb-2">Unable to load driver map</p>
+          <button
+            onClick={() => setHasError(false)}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 // Dynamically import the map component to avoid SSR issues
 const DriverTrackingMapComponent = dynamic(() => import('./DriverTrackingMapComponent'), {
@@ -44,5 +74,9 @@ interface DriverTrackingMapProps {
 }
 
 export default function DriverTrackingMap(props: DriverTrackingMapProps) {
-  return <DriverTrackingMapComponent {...props} />;
+  return (
+    <ErrorBoundary>
+      <DriverTrackingMapComponent {...props} />
+    </ErrorBoundary>
+  );
 } 

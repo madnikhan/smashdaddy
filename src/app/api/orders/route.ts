@@ -75,9 +75,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Broadcast to kitchen panel
-    await broadcastNotification({ type: 'order_update', orderId: order.id });
-    console.log('[OrderAPI] broadcastNotification called for new order:', order.id);
+    // Broadcast to kitchen panel (non-blocking - don't fail order creation if broadcast fails)
+    try {
+      await broadcastNotification({ type: 'order_update', orderId: order.id });
+      console.log('[OrderAPI] broadcastNotification called for new order:', order.id);
+    } catch (broadcastError) {
+      console.error('[OrderAPI] Failed to broadcast notification (non-critical):', broadcastError);
+      // Don't throw - order creation should succeed even if broadcast fails
+    }
 
     return NextResponse.json({
       success: true,
@@ -182,6 +187,9 @@ export async function GET(request: NextRequest) {
         customerName: order.customerName,
         customerEmail: order.customerEmail,
         customerPhone: order.customerPhone,
+        customerAddress: order.customerAddress,
+        customerCity: order.customerCity,
+        customerPostcode: order.customerPostcode,
         orderType: order.orderType,
         status: order.status,
         paymentStatus: order.paymentStatus,
@@ -213,9 +221,38 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('[OrdersAPI] Error fetching orders:', error);
+    
+    // Enhanced error logging
+    let errorCode = 'UNKNOWN';
+    let errorMessage = 'Unknown error';
+    let errorMeta: any = null;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
+    if (error && typeof error === 'object') {
+      if ('code' in error) {
+        errorCode = String((error as any).code);
+        console.error('[OrdersAPI] Prisma error code:', errorCode);
+      }
+      if ('meta' in error) {
+        errorMeta = (error as any).meta;
+        console.error('[OrdersAPI] Prisma error meta:', JSON.stringify(errorMeta, null, 2));
+      }
+      if ('stack' in error) {
+        console.error('[OrdersAPI] Error stack:', (error as any).stack);
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch orders', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Failed to fetch orders', 
+        details: errorMessage,
+        code: errorCode,
+        ...(errorMeta && { meta: errorMeta })
+      },
       { status: 500 }
     );
   }

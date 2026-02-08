@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma';
 // PATCH - Process payment
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
+    const { orderId } = await params;
     const body = await request.json();
     const { paymentStatus, paymentMethod = 'CASH' } = body;
 
@@ -28,7 +29,7 @@ export async function PATCH(
 
     // Update order payment status
     const order = await prisma.order.update({
-      where: { id: params.orderId },
+      where: { id: orderId },
       data: { 
         paymentStatus: paymentStatus.toUpperCase(),
         updatedAt: new Date(),
@@ -41,14 +42,14 @@ export async function PATCH(
     // Create or update payment record
     if (paymentStatus.toUpperCase() === 'COMPLETED') {
       await prisma.payment.upsert({
-        where: { orderId: params.orderId },
+        where: { orderId },
         update: {
           status: 'COMPLETED',
           method: paymentMethod.toUpperCase(),
           updatedAt: new Date(),
         },
         create: {
-          orderId: params.orderId,
+          orderId,
           amount: order.total,
           currency: 'GBP',
           status: 'COMPLETED',

@@ -431,7 +431,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   // Fetch cart on mount
   useEffect(() => {
-    fetchCart();
+    fetchCart().catch((error) => {
+      console.error('Failed to fetch cart on mount:', error);
+    });
   }, []);
 
   const value: CartContextType = {

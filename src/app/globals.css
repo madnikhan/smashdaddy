@@ -42,6 +42,23 @@
   background: #f8f9fa !important;
 }
 
+/* Ensure map container is visible and properly sized */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
+  background: #f0f0f0 !important;
+}
+
+.leaflet-tile-container {
+  z-index: 1 !important;
+}
+
+.leaflet-tile {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 @layer base {
   :root {
     /* STACKD Color Palette */

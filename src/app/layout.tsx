@@ -69,6 +69,18 @@ export const metadata: Metadata = {
     { rel: "icon", type: "image/png", sizes: "96x96", url: "/favicon-96x96.png" },
   ],
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SmashDaddy",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({
@@ -79,7 +91,11 @@ export default function RootLayout({
   return (
     <html lang="en-GB" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
-        {/* Add favicon and web app manifest links to the <head> */}
+        <link rel="manifest" href="/site.webmanifest" />
+        <meta name="theme-color" content="#FF6B35" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="SmashDaddy" />
       </head>
       <body 
         className="min-h-screen bg-black text-white" 

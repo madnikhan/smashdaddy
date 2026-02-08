@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from '@/lib/redis';
 
 export async function GET(request: NextRequest) {
   console.log('[SSE] New SSE connection established');
@@ -11,11 +10,17 @@ export async function GET(request: NextRequest) {
     `data: ${JSON.stringify({ type: 'connected', message: 'Connected to order notifications' })}\n\n`
   );
 
-  // Subscribe to Redis channel
-  await redis.subscribe('orders', (message: unknown) => {
-    console.log('[Upstash][SSE] Received pub/sub message:', message);
-    writer.write(`data: ${message}\n\n`);
+  // Note: Upstash Redis REST API doesn't support real-time pub/sub subscriptions
+  // This is a placeholder - consider using Pusher or WebSockets for real-time updates
+  // For now, we'll use polling or a different approach
+  console.warn('[SSE] Redis pub/sub not available with Upstash REST API. Consider using Pusher or WebSockets.');
+  
+  // Send a connection message
+  const keepAlive = setInterval(() => {
+    writer.write(`data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`).catch(() => {
+      clearInterval(keepAlive);
   });
+  }, 30000);
 
   // Handle client disconnect
   request.signal.addEventListener('abort', () => {

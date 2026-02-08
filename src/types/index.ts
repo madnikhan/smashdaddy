@@ -394,6 +394,8 @@ export interface InputProps {
   required?: boolean;
   disabled?: boolean;
   className?: string;
+  minLength?: number;
+  id?: string;
 }
 
 export interface CardProps {

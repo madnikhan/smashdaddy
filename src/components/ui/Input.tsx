@@ -12,6 +12,8 @@ export const Input: React.FC<InputProps> = ({
   required = false,
   disabled = false,
   className,
+  minLength,
+  id,
 }) => {
   const inputClasses = cn(
     "input",
@@ -29,12 +31,14 @@ export const Input: React.FC<InputProps> = ({
         </label>
       )}
       <input
+        id={id}
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange?.(e?.target?.value || '')}
         required={required}
         disabled={disabled}
+        minLength={minLength}
         className={inputClasses}
       />
       {error && (

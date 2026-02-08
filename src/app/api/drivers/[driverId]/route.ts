@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 // PATCH - Update driver information
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { driverId: string } }
+  { params }: { params: Promise<{ driverId: string }> }
 ) {
   try {
-    const { driverId } = params;
+    const { driverId } = await params;
     const body = await request.json();
     const { isAvailable, currentLocation, rating, totalDeliveries, earnings } = body;
 
@@ -58,9 +58,9 @@ export async function PATCH(
 }
 
 // GET - Get specific driver
-export async function GET(request: NextRequest, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ driverId: string }> }) {
   try {
-    const { driverId } = params;
+    const { driverId } = await params;
 
     const driver = await prisma.driver.findUnique({
       where: { id: driverId },

@@ -9,8 +9,9 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+// Use PostgreSQL for production (Vercel/serverless). For local dev use Neon, Supabase, or Docker.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -113,6 +114,7 @@ model Driver {
 
   user          User     @relation("UserDriver", fields: [userId], references: [id], onDelete: Cascade)
   deliveries    Order[]  @relation("DriverDeliveries")
+  ratings       DriverRating[]
 
   @@map("drivers")
 }
@@ -374,6 +376,23 @@ model Review {
 
   @@unique([customerId, restaurantId, orderId])
   @@map("reviews")
+}
+
+model DriverRating {
+  id           String   @id @default(cuid())
+  driverId     String
+  orderId      String   @unique
+  customerEmail String  // Store customer email for identification
+  customerName String   // Store customer name
+  rating       Int      // 1-5 stars
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  driver       Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, orderId])
+  @@map("driver_ratings")
 }
 
 // Promotion and Loyalty Models

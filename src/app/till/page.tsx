@@ -17,7 +17,21 @@ import {
   MapPin 
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import DriverTrackingMap from '@/components/DriverTrackingMap'
+import InstallPrompt from '@/components/InstallPrompt'
+import dynamic from 'next/dynamic';
+
+// Dynamically import DriverTrackingMap to avoid chunk loading issues
+const DriverTrackingMap = dynamic(() => import('@/components/DriverTrackingMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
+        <p className="text-gray-600">Loading driver map...</p>
+      </div>
+    </div>
+  ),
+});
 
 // Client-side only time display component
 function TimeDisplay() {
@@ -55,6 +69,7 @@ interface OrderItem {
 
 interface Order {
   id: string
+  orderNumber?: string
   customerName: string
   items: OrderItem[]
   total: number
@@ -100,10 +115,32 @@ export default function TillPage() {
   const fetchOrders = async () => {
     try {
       setLoadingOrders(true)
-      const response = await fetch('/api/orders?limit=100')
-      const data = await response.json()
+      const response = await fetch('/api/orders?limit=100').catch((fetchError) => {
+        console.error('[TillPage] Network error fetching orders:', fetchError);
+        return null;
+      });
+
+      if (!response || !response.ok) {
+        if (response) {
+          const errorText = await response.text().catch(() => '');
+          console.error('[TillPage] Failed to fetch orders:', response.status, errorText);
+        }
+        return; // Silently fail - don't disrupt existing orders
+      }
+
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('[TillPage] Expected JSON but got:', contentType);
+        return;
+      }
+
+      const data = await response.json().catch((parseError) => {
+        console.error('[TillPage] Error parsing orders response:', parseError);
+        return null;
+      });
       
-      if (data.success) {
+      if (data && data.success) {
         setOrders(data.orders.map((order: any) => ({
           id: order.id,
           orderNumber: order.orderNumber,
@@ -123,7 +160,10 @@ export default function TillPage() {
         })))
       }
     } catch (error) {
-      console.error('Error fetching orders:', error)
+      // Only log unexpected errors
+      if (error instanceof Error && !error.message.includes('fetch')) {
+        console.error('[TillPage] Unexpected error fetching orders:', error);
+      }
     } finally {
       setLoadingOrders(false)
     }
@@ -141,10 +181,42 @@ export default function TillPage() {
     const fetchMenuItems = async () => {
       try {
         setLoadingMenu(true)
-        const response = await fetch('/api/menu?available=true')
-        const data = await response.json()
+        const response = await fetch('/api/menu?available=true').catch((fetchError) => {
+          console.error('[TillPage] Network error fetching menu items:', fetchError);
+          return null;
+        });
+
+        if (!response || !response.ok) {
+          // Fallback to basic items if API fails
+          setMenuItems([
+            { id: '1', name: 'Single Smash Burger', price: 6.99, category: 'BURGERS', description: 'Smashed patties with STACK\'D sauce', isAvailable: true },
+            { id: '2', name: 'Double Smash Burger', price: 8.49, category: 'BURGERS', description: 'Double smashed patties with STACK\'D sauce', isAvailable: true },
+            { id: '3', name: '1/4 Grilled Chicken', price: 5.99, category: 'GRILLED CHICKEN', description: 'Flame-grilled peri chicken', isAvailable: true },
+            { id: '4', name: 'Regular Fries', price: 2.49, category: 'SIDES', description: 'Crispy golden fries', isAvailable: true },
+          ]);
+          return;
+        }
+
+        // Check content type before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('[TillPage] Expected JSON but got:', contentType);
+          // Use fallback
+          setMenuItems([
+            { id: '1', name: 'Single Smash Burger', price: 6.99, category: 'BURGERS', description: 'Smashed patties with STACK\'D sauce', isAvailable: true },
+            { id: '2', name: 'Double Smash Burger', price: 8.49, category: 'BURGERS', description: 'Double smashed patties with STACK\'D sauce', isAvailable: true },
+            { id: '3', name: '1/4 Grilled Chicken', price: 5.99, category: 'GRILLED CHICKEN', description: 'Flame-grilled peri chicken', isAvailable: true },
+            { id: '4', name: 'Regular Fries', price: 2.49, category: 'SIDES', description: 'Crispy golden fries', isAvailable: true },
+          ]);
+          return;
+        }
+
+        const data = await response.json().catch((parseError) => {
+          console.error('[TillPage] Error parsing menu response:', parseError);
+          return null;
+        });
         
-        if (data.success) {
+        if (data && data.success) {
           setMenuItems(data.menuItems.map((item: any) => ({
             id: item.id,
             name: item.name,
@@ -153,16 +225,27 @@ export default function TillPage() {
             description: item.description,
             isAvailable: item.isAvailable
           })))
+        } else {
+          // Fallback if response is invalid
+          setMenuItems([
+            { id: '1', name: 'Single Smash Burger', price: 6.99, category: 'BURGERS', description: 'Smashed patties with STACK\'D sauce', isAvailable: true },
+            { id: '2', name: 'Double Smash Burger', price: 8.49, category: 'BURGERS', description: 'Double smashed patties with STACK\'D sauce', isAvailable: true },
+            { id: '3', name: '1/4 Grilled Chicken', price: 5.99, category: 'GRILLED CHICKEN', description: 'Flame-grilled peri chicken', isAvailable: true },
+            { id: '4', name: 'Regular Fries', price: 2.49, category: 'SIDES', description: 'Crispy golden fries', isAvailable: true },
+          ]);
         }
       } catch (error) {
-        console.error('Error fetching menu items:', error)
-        // Fallback to some basic items if API fails
+        // Only log unexpected errors
+        if (error instanceof Error && !error.message.includes('fetch')) {
+          console.error('[TillPage] Unexpected error fetching menu items:', error);
+        }
+        // Always provide fallback
         setMenuItems([
           { id: '1', name: 'Single Smash Burger', price: 6.99, category: 'BURGERS', description: 'Smashed patties with STACK\'D sauce', isAvailable: true },
           { id: '2', name: 'Double Smash Burger', price: 8.49, category: 'BURGERS', description: 'Double smashed patties with STACK\'D sauce', isAvailable: true },
           { id: '3', name: '1/4 Grilled Chicken', price: 5.99, category: 'GRILLED CHICKEN', description: 'Flame-grilled peri chicken', isAvailable: true },
           { id: '4', name: 'Regular Fries', price: 2.49, category: 'SIDES', description: 'Crispy golden fries', isAvailable: true },
-        ])
+        ]);
       } finally {
         setLoadingMenu(false)
       }
@@ -332,11 +415,11 @@ export default function TillPage() {
           }
         }
       } else {
-        let errorData = {};
+        let errorData: { error?: string } = {};
         try {
           errorData = await response.json();
         } catch (e) {
-          errorData = { error: 'Non-JSON error response', status: response.status, statusText: response.statusText };
+          errorData = { error: 'Non-JSON error response' };
         }
         console.error('Failed to update order status:', errorData, response.status, response.statusText);
         throw new Error(errorData.error || 'Failed to update order status');
@@ -471,11 +554,11 @@ export default function TillPage() {
         setMenuSearchTerm('')
         setShowNewOrderModal(false)
       } else {
-        let errorData = {};
+        let errorData: { error?: string } = {};
         try {
           errorData = await response.json();
         } catch (e) {
-          errorData = { error: 'Non-JSON error response', status: response.status, statusText: response.statusText };
+          errorData = { error: 'Non-JSON error response' };
         }
         console.error('Failed to create order:', errorData, response.status, response.statusText);
         throw new Error(errorData.error || 'Failed to create order');
@@ -508,6 +591,8 @@ export default function TillPage() {
   }
 
   return (
+    <>
+      <InstallPrompt />
     <div className="min-h-screen bg-gradient-primary">
       {/* Header */}
       <header className="bg-black/90 backdrop-blur-sm border-b border-gray-700 px-6 py-4 shadow-lg">
@@ -1079,7 +1164,12 @@ export default function TillPage() {
                           Phone: {driver.phone} • Rating: {driver.rating}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Vehicle: {driver.vehicleInfo?.type} {driver.vehicleInfo?.model}
+                          Vehicle: {
+                            driver.vehicleInfo 
+                              ? (typeof driver.vehicleInfo === 'object' 
+                                  ? `${driver.vehicleInfo.type || ''} ${driver.vehicleInfo.model || ''} ${driver.vehicleInfo.color || ''} ${driver.vehicleInfo.licensePlate || ''}`.trim()
+                                  : driver.vehicleInfo)
+                              : 'N/A'}
                         </p>
                       </div>
                     ))}
@@ -1184,7 +1274,12 @@ export default function TillPage() {
                           <div>
                             <h4 className="font-medium text-lg">{driver.user?.name || 'Driver'}</h4>
                             <p className="text-sm text-gray-600">
-                              Phone: {driver.phone} • Rating: {driver.rating} • Vehicle: {driver.vehicleInfo?.type} {driver.vehicleInfo?.model}
+                              Phone: {driver.phone} • Rating: {driver.rating} • Vehicle: {
+                                driver.vehicleInfo 
+                                  ? (typeof driver.vehicleInfo === 'object' 
+                                      ? `${driver.vehicleInfo.type || ''} ${driver.vehicleInfo.model || ''} ${driver.vehicleInfo.color || ''} ${driver.vehicleInfo.licensePlate || ''}`.trim()
+                                      : driver.vehicleInfo)
+                                  : 'N/A'}
                             </p>
                           </div>
                           <div className="text-right">
@@ -1247,5 +1342,6 @@ export default function TillPage() {
         </div>
       )}
     </div>
+    </>
   )
 } 

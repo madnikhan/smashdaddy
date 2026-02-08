@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import InstallPrompt from '@/components/InstallPrompt';
 import { 
   Truck, 
   MapPin, 
@@ -71,7 +72,15 @@ export default function DriverDashboard() {
   const [showManualLocation, setShowManualLocation] = useState(false);
   const [manualLatitude, setManualLatitude] = useState('');
   const [manualLongitude, setManualLongitude] = useState('');
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const router = useRouter();
+  const lastLocationRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+  const ordersRef = useRef<Order[]>([]);
+
+  // Update ref when orders change
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
 
   // Check authentication on component mount
   useEffect(() => {
@@ -97,56 +106,33 @@ export default function DriverDashboard() {
     if (!driver) return;
 
     const getCurrentLocation = () => {
-      console.log('=== Geolocation Debug Info ===');
-      console.log('Browser:', navigator.userAgent);
-      console.log('Secure Context:', window.isSecureContext);
-      console.log('Protocol:', window.location.protocol);
-      console.log('Hostname:', window.location.hostname);
-      console.log('Geolocation Supported:', !!navigator.geolocation);
-      console.log('Permissions API Supported:', !!navigator.permissions);
-      console.log('================================');
-      
       // Check if we're in a secure context (HTTPS is required for geolocation)
       if (!window.isSecureContext) {
-        console.log('Not in secure context - HTTPS required for geolocation');
         // Allow localhost in development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          console.log('Localhost detected - allowing geolocation');
-        } else {
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
           setLocationError('Location access requires HTTPS. Please access this page via HTTPS.');
           return;
         }
       }
       
       if (!navigator.geolocation) {
-        console.log('Geolocation not supported by browser');
         setLocationError('Geolocation is not supported by this browser. Please use a modern browser.');
         return;
       }
 
-      console.log('Geolocation supported, requesting position...');
-
-      // Check permission status if available
+      // Check permission status if available (silently)
       if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-          console.log('Geolocation permission status:', result.state);
           if (result.state === 'denied') {
             setLocationError('Location access is blocked. Please enable location access in your browser settings.');
-            return;
           }
-        }).catch((error) => {
-          console.log('Permission query failed:', error);
+        }).catch(() => {
+          // Silently ignore permission query errors
         });
       }
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log('Location obtained successfully:', {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: new Date(position.timestamp).toISOString()
-          });
           const { latitude, longitude } = position.coords;
           setCurrentLocation({ latitude, longitude });
           setLocationError(null);
@@ -155,17 +141,10 @@ export default function DriverDashboard() {
           updateLocationOnServer(latitude, longitude, position.coords.accuracy);
         },
         (error) => {
-          console.error('Geolocation error details:', {
-            code: error.code,
-            message: error.message,
-            PERMISSION_DENIED: error.PERMISSION_DENIED,
-            POSITION_UNAVAILABLE: error.POSITION_UNAVAILABLE,
-            TIMEOUT: error.TIMEOUT,
-            browser: navigator.userAgent,
-            secureContext: window.isSecureContext,
-            hostname: window.location.hostname,
-            protocol: window.location.protocol
-          });
+          // Only log errors, not debug info
+          if (error.code !== error.TIMEOUT) {
+            console.error('[DriverLocation] Geolocation error:', error.message);
+          }
           
           // Provide specific error messages based on error code
           let errorMessage = 'Unable to get your location. ';
@@ -181,9 +160,8 @@ export default function DriverDashboard() {
               detailedHelp = 'Enable Location Services in System Preferences (macOS) or Settings (iOS/Android).';
               break;
             case error.TIMEOUT:
-              errorMessage += 'Location request timed out. Please try again.';
-              detailedHelp = 'Check your internet connection and try again.';
-              break;
+              // Don't show error for timeout - just silently retry
+              return;
             default:
               errorMessage += 'Please check your browser settings and ensure location access is enabled.';
               detailedHelp = 'Try refreshing the page or restarting your browser.';
@@ -207,8 +185,8 @@ export default function DriverDashboard() {
     // Start location tracking
     getCurrentLocation();
     
-    // Set up periodic location updates (every 30 seconds)
-    const interval = setInterval(getCurrentLocation, 30000);
+    // Set up periodic location updates (every 60 seconds to reduce server load)
+    const interval = setInterval(getCurrentLocation, 60000);
     setLocationUpdateInterval(interval);
 
     return () => {
@@ -222,34 +200,28 @@ export default function DriverDashboard() {
   const refreshLocation = () => {
     setLocationError(null);
     if (navigator.geolocation) {
-      console.log('Manual location refresh requested...');
-      
       // Try with high accuracy first
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log('Manual location refresh successful:', position);
           const { latitude, longitude } = position.coords;
           setCurrentLocation({ latitude, longitude });
           setLocationError(null);
           updateLocationOnServer(latitude, longitude, position.coords.accuracy);
         },
         (error) => {
-          console.log('High accuracy location failed, trying with lower accuracy...');
-          
           // Fallback to lower accuracy
           navigator.geolocation.getCurrentPosition(
             (position) => {
-              console.log('Lower accuracy location successful:', position);
               const { latitude, longitude } = position.coords;
               setCurrentLocation({ latitude, longitude });
               setLocationError(null);
               updateLocationOnServer(latitude, longitude, position.coords.accuracy);
             },
             (fallbackError) => {
-              console.error('Both high and low accuracy location failed:', {
-                highAccuracyError: error,
-                lowAccuracyError: fallbackError
-              });
+              // Only log if both attempts failed (and not timeout)
+              if (error.code !== error.TIMEOUT && fallbackError.code !== fallbackError.TIMEOUT) {
+                console.error('[DriverLocation] Location refresh failed:', fallbackError.message);
+              }
               
               let errorMessage = 'Unable to get your location. ';
               switch (fallbackError.code) {
@@ -289,6 +261,24 @@ export default function DriverDashboard() {
   // Update location on server
   const updateLocationOnServer = async (latitude: number, longitude: number, accuracy?: number) => {
     if (!driver) return;
+    
+    // Throttle location updates - only update if location changed significantly (more than 10 meters)
+    const now = Date.now();
+    
+    if (lastLocationRef.current) {
+      const timeSinceLastUpdate = now - lastLocationRef.current.time;
+      const distance = Math.sqrt(
+        Math.pow(latitude - lastLocationRef.current.lat, 2) + 
+        Math.pow(longitude - lastLocationRef.current.lng, 2)
+      ) * 111000; // Convert to meters (rough approximation)
+      
+      // Only update if location changed by more than 10 meters OR it's been more than 30 seconds
+      if (distance < 10 && timeSinceLastUpdate < 30000) {
+        return; // Skip update - location hasn't changed enough
+      }
+    }
+    
+    lastLocationRef.current = { lat: latitude, lng: longitude, time: now };
 
     try {
       const response = await fetch(`/api/drivers/${driver.id}/location`, {
@@ -302,19 +292,77 @@ export default function DriverDashboard() {
           accuracy,
           timestamp: new Date().toISOString(),
         }),
+      }).catch(() => {
+        // Silently handle network errors - they're usually temporary
+        return null;
       });
 
-      if (!response.ok) {
-        console.error('Failed to update location on server:', response.status, response.statusText);
+      if (!response || !response.ok) {
+        // Only log if it's not a network error
+        if (response) {
+          const errorText = await response.text().catch(() => '');
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.error && !errorData.error.includes('network')) {
+              console.error('[DriverLocation] Failed to update location:', errorData.error);
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
         return;
       }
 
-      const data = await response.json();
-      if (!data.success) {
-        console.error('Server returned error:', data.error);
+      const data = await response.json().catch(() => null);
+      if (data && !data.success && data.error) {
+        console.error('[DriverLocation] Server error:', data.error);
       }
     } catch (error) {
-      console.error('Error updating location on server:', error);
+      // Only log unexpected errors
+      if (error instanceof Error && !error.message.includes('fetch')) {
+        console.error('[DriverLocation] Unexpected error:', error.message);
+      }
+    }
+  };
+
+  // Helper function to safely parse JSON response
+  const safeJsonParse = async (response: Response) => {
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(`Expected JSON but got ${contentType}. Response: ${text.substring(0, 100)}`);
+    }
+    return response.json();
+  };
+
+  // Fetch latest driver data from API (silent background update)
+  const fetchLatestDriverData = async () => {
+    if (!driver) return;
+
+    try {
+      const response = await fetch(`/api/drivers/${driver.id}`).catch(() => {
+        // Silently handle network errors - this is a background update
+        return null;
+      });
+
+      if (response && response.ok) {
+        try {
+          const data = await safeJsonParse(response);
+          if (data.success && data.driver) {
+            // Update driver state with latest data (including updated rating)
+            setDriver(prevDriver => ({
+              ...prevDriver!,
+              ...data.driver,
+            }));
+            // Also update localStorage to keep it in sync
+            localStorage.setItem('driverData', JSON.stringify(data.driver));
+          }
+        } catch {
+          // Silently ignore parse errors in background updates
+        }
+      }
+    } catch {
+      // Silently ignore errors - this is a background update
     }
   };
 
@@ -322,40 +370,107 @@ export default function DriverDashboard() {
   useEffect(() => {
     if (!driver) return;
 
+    // Fetch latest driver data first (to get updated rating)
+    fetchLatestDriverData();
+
     const fetchDriverData = async () => {
       try {
-        // Fetch orders for this driver
-        const response = await fetch('/api/orders?status=OUT_FOR_DELIVERY&limit=20');
+        // Fetch orders for this driver - try multiple status values
+        const response = await fetch('/api/orders?limit=50').catch((fetchError) => {
+          // Silently handle network errors during polling
+          return null;
+        });
         
-        if (!response.ok) {
-          console.error('Failed to fetch orders:', response.status, response.statusText);
+        if (!response) {
+          // Network error - only show error on initial load, not during polling
+          if (ordersRef.current.length === 0) {
+            setFetchError('Unable to connect to server. Please check your internet connection and ensure the server is running.');
+          }
+          setLoading(false);
           return;
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+          // Only show error on initial load
+          if (ordersRef.current.length === 0) {
+            const errorText = await response.text().catch(() => '');
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || response.statusText };
+            }
+            setFetchError(`Failed to fetch orders: ${errorData.error || response.statusText}`);
+          }
+          setLoading(false);
+          return;
+        }
+
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          // Only show error on initial load
+          if (ordersRef.current.length === 0) {
+            setFetchError('Server returned invalid response. Please try refreshing the page.');
+          }
+          setLoading(false);
+          return;
+        }
+
+        const data = await response.json().catch((parseError) => {
+          console.error('[DriverDashboard] Error parsing orders response:', parseError);
+          return null;
+        });
         
-        if (data.success) {
+        if (data && data.success) {
+          // Clear any previous fetch errors on success
+          setFetchError(null);
+          
           // Filter orders that are assigned to this driver or available for pickup
-          const driverOrders = data.orders.filter((order: Order) => 
-            order.status === 'OUT_FOR_DELIVERY' || 
-            order.status === 'READY_FOR_PICKUP'
-          );
+          // Also include orders with status OUT_FOR_DELIVERY or READY_FOR_PICKUP
+          const driverOrders = data.orders.filter((order: Order) => {
+            const status = order.status?.toUpperCase();
+            return (
+              status === 'OUT_FOR_DELIVERY' || 
+              status === 'READY_FOR_PICKUP' ||
+              status === 'READY_FOR_DELIVERY'
+            );
+          });
           setOrders(driverOrders);
-        } else {
-          console.error('Failed to fetch orders:', data.error);
+          ordersRef.current = driverOrders; // Update ref
+        } else if (data && !data.success && ordersRef.current.length === 0) {
+          // Only show error on initial load
+          setFetchError(data.error || 'Failed to fetch orders. Please try refreshing the page.');
         }
       } catch (error) {
-        console.error('Error fetching driver data:', error);
+        // Only show error on initial load
+        if (ordersRef.current.length === 0) {
+          if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            setFetchError('Unable to connect to server. Please check your internet connection and ensure the server is running.');
+          } else {
+            setFetchError('An error occurred while fetching orders. Please try refreshing the page.');
+          }
+        }
       } finally {
-        setLoading(false);
+        // Only set loading to false on initial load, not during polling
+        if (ordersRef.current.length === 0) {
+          setLoading(false);
+        }
       }
     };
 
     fetchDriverData();
     
-    // Set up polling for real-time updates
-    const interval = setInterval(fetchDriverData, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
+    // Set up polling for real-time updates (both orders and driver data)
+    // Poll every 30 seconds to reduce server load and console noise
+    const interval = setInterval(() => {
+      fetchDriverData();
+      fetchLatestDriverData(); // Also refresh driver data to get updated rating
+    }, 30000); // Poll every 30 seconds
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, [driver]);
 
   // Toggle availability
@@ -374,14 +489,24 @@ export default function DriverDashboard() {
       });
 
       if (response.ok) {
-        // Get the updated driver data from the response
-        const data = await response.json();
-        if (data.success) {
-          // Update state with the server response
-          setIsAvailable(data.driver.isAvailable);
-          setDriver(data.driver);
-          // Update localStorage with the fresh data
-          localStorage.setItem('driverData', JSON.stringify(data.driver));
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const data = await response.json();
+            if (data.success) {
+              // Update state with the server response
+              setIsAvailable(data.driver.isAvailable);
+              setDriver(data.driver);
+              // Update localStorage with the fresh data
+              localStorage.setItem('driverData', JSON.stringify(data.driver));
+            }
+          } catch (parseError) {
+            console.error('Error parsing response:', parseError);
+          }
+        } else {
+          const text = await response.text();
+          console.error('Expected JSON but got:', contentType, text.substring(0, 200));
         }
       }
     } catch (error) {
@@ -406,9 +531,21 @@ export default function DriverDashboard() {
       if (response.ok) {
         // Refresh orders
         const ordersResponse = await fetch('/api/orders?status=OUT_FOR_DELIVERY&limit=20');
-        const ordersData = await ordersResponse.json();
-        if (ordersData.success) {
-          setOrders(ordersData.orders);
+        if (ordersResponse.ok) {
+          const contentType = ordersResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            try {
+              const ordersData = await ordersResponse.json();
+              if (ordersData.success) {
+                setOrders(ordersData.orders);
+              }
+            } catch (parseError) {
+              console.error('Error parsing orders response:', parseError);
+            }
+          } else {
+            const text = await ordersResponse.text();
+            console.error('Expected JSON but got:', contentType, text.substring(0, 200));
+          }
         }
       }
     } catch (error) {
@@ -432,9 +569,21 @@ export default function DriverDashboard() {
       if (response.ok) {
         // Refresh orders
         const ordersResponse = await fetch('/api/orders?status=OUT_FOR_DELIVERY&limit=20');
-        const ordersData = await ordersResponse.json();
-        if (ordersData.success) {
-          setOrders(ordersData.orders);
+        if (ordersResponse.ok) {
+          const contentType = ordersResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            try {
+              const ordersData = await ordersResponse.json();
+              if (ordersData.success) {
+                setOrders(ordersData.orders);
+              }
+            } catch (parseError) {
+              console.error('Error parsing orders response:', parseError);
+            }
+          } else {
+            const text = await ordersResponse.text();
+            console.error('Expected JSON but got:', contentType, text.substring(0, 200));
+          }
         }
       }
     } catch (error) {
@@ -455,8 +604,17 @@ export default function DriverDashboard() {
   };
 
   // Get directions with current location
-  const getDirectionsWithLocation = (address: string) => {
-    const encodedAddress = encodeURIComponent(address);
+  const getDirectionsWithLocation = (address: string, city?: string, postcode?: string) => {
+    // Build full address string
+    let fullAddress = address;
+    if (city) {
+      fullAddress += `, ${city}`;
+    }
+    if (postcode) {
+      fullAddress += ` ${postcode}`;
+    }
+    
+    const encodedAddress = encodeURIComponent(fullAddress);
     
     if (!currentLocation) {
       // Fallback to basic directions without current location
@@ -468,28 +626,22 @@ export default function DriverDashboard() {
     const { latitude, longitude } = currentLocation;
     
     // Use Google Maps with current location
-    console.log('Using current location for directions:', { latitude, longitude, address });
+    // Using current location for directions
     window.open(`https://www.google.com/maps/dir/${latitude},${longitude}/${encodedAddress}`, '_blank');
   };
 
-  // Test geolocation function for debugging
+  // Test geolocation function for debugging (silent)
   const testGeolocation = () => {
-    console.log('=== Testing Geolocation ===');
-    console.log('navigator.geolocation:', !!navigator.geolocation);
-    console.log('window.isSecureContext:', window.isSecureContext);
-    console.log('window.location.protocol:', window.location.protocol);
-    console.log('window.location.hostname:', window.location.hostname);
-    
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log('✅ Geolocation test successful:', position.coords);
+          // Geolocation test successful (silent)
         },
         (error) => {
-          console.log('❌ Geolocation test failed:', {
-            code: error.code,
-            message: error.message
-          });
+          // Only log non-timeout errors
+          if (error.code !== error.TIMEOUT) {
+            console.error('[DriverLocation] Geolocation test failed:', error.message);
+          }
         },
         { timeout: 5000 }
       );
@@ -538,7 +690,9 @@ export default function DriverDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
+    <>
+      <InstallPrompt />
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
       {/* Header */}
       <header className="bg-black/20 backdrop-blur-sm border-b border-white/10 px-4 py-3 md:px-6 md:py-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
@@ -622,6 +776,27 @@ export default function DriverDashboard() {
           </div>
         </div>
       </header>
+
+      {/* Fetch Error Alert */}
+      {fetchError && (
+        <div className="bg-yellow-500 text-white px-4 py-3 md:px-6 md:py-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm md:text-base">Connection Issue</p>
+                <p className="text-xs md:text-sm text-yellow-100 mt-1">{fetchError}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setFetchError(null)}
+              className="text-white hover:text-yellow-200"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Location Error Alert */}
       {locationError && (
@@ -792,7 +967,11 @@ export default function DriverDashboard() {
                         Order #{order.orderNumber}
                       </h3>
                       <p className="text-blue-200 text-sm md:text-base">{order.customerName}</p>
-                      <p className="text-white/70 text-xs md:text-sm">{order.customerAddress}</p>
+                      <p className="text-white/70 text-xs md:text-sm">
+                        {order.customerAddress}
+                        {order.customerCity && `, ${order.customerCity}`}
+                        {order.customerPostcode && ` ${order.customerPostcode}`}
+                      </p>
                     </div>
                     <div className="text-left md:text-right">
                       <p className="text-xl md:text-2xl font-bold text-white">£{order.total.toFixed(2)}</p>
@@ -822,9 +1001,13 @@ export default function DriverDashboard() {
                   {/* Action Buttons */}
                   <div className="flex flex-wrap items-center gap-2 md:gap-3">
                     <button
-                      onClick={() => getDirectionsWithLocation(order.customerAddress)}
+                      onClick={() => getDirectionsWithLocation(
+                        order.customerAddress,
+                        order.customerCity,
+                        order.customerPostcode
+                      )}
                       className="flex items-center space-x-1 md:space-x-2 px-3 py-2 md:px-4 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs md:text-sm"
-                      title={`Get directions to: ${order.customerAddress}${currentLocation ? ' (from your current location)' : ''}`}
+                      title={`Get directions to: ${order.customerAddress}${order.customerCity ? `, ${order.customerCity}` : ''}${order.customerPostcode ? ` ${order.customerPostcode}` : ''}${currentLocation ? ' (from your current location)' : ''}`}
                     >
                       <Navigation className="w-3 h-3 md:w-4 md:h-4" />
                       <span>Get Directions</span>
@@ -866,23 +1049,48 @@ export default function DriverDashboard() {
 
         {/* Live Map */}
         {showMap && (
-          <div className="w-full lg:w-1/2 p-3 md:p-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 md:p-4 border border-white/20 h-full">
-              <h3 className="text-base md:text-lg font-semibold text-white mb-3 md:mb-4">Live Location</h3>
+          <div className="w-full lg:w-1/2 p-3 md:p-6 flex flex-col min-h-0">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 md:p-4 border border-white/20 flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-3 md:mb-4 flex-shrink-0">
+                <h3 className="text-base md:text-lg font-semibold text-white">Live Location</h3>
+                <button
+                  onClick={() => setShowMap(false)}
+                  className="text-white/70 hover:text-white transition-colors text-sm"
+                  aria-label="Hide map"
+                >
+                  ✕
+                </button>
+              </div>
               {currentLocation ? (
-                <LiveMap 
-                  currentLocation={currentLocation}
-                  height="calc(100% - 60px)"
-                  showControls={true}
-                />
+                <div 
+                  className="flex-1 w-full min-h-0" 
+                  style={{ 
+                    minHeight: '500px',
+                    height: '100%',
+                    width: '100%',
+                    position: 'relative'
+                  }}
+                >
+                  <LiveMap 
+                    key={`map-${showMap}-${currentLocation.latitude}-${currentLocation.longitude}`}
+                    currentLocation={currentLocation}
+                    height="100%"
+                    showControls={true}
+                  />
+                </div>
               ) : (
-                <div className="bg-gray-800 rounded-lg h-[calc(100%-60px)] flex items-center justify-center">
+                <div className="bg-gray-800 rounded-lg h-[calc(100%-60px)] min-h-[400px] flex items-center justify-center">
                   <div className="text-center p-4">
                     <MapPin className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-3 md:mb-4" />
                     <p className="text-white text-base md:text-lg font-medium">Location Required</p>
                     <p className="text-white/70 text-sm mt-2 mb-3 md:mb-4">
                       Enable location access to see your position on the map
                     </p>
+                    {locationError && (
+                      <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-3 md:mb-4 text-left max-w-md mx-auto">
+                        <p className="text-red-200 text-xs whitespace-pre-line">{locationError}</p>
+                      </div>
+                    )}
                     <button
                       onClick={refreshLocation}
                       className="px-3 py-2 md:px-4 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
@@ -896,6 +1104,7 @@ export default function DriverDashboard() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 } 
