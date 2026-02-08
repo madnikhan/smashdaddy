@@ -42,7 +42,7 @@
 
 - **Command**: `npm run build` (runs `prisma generate && next build`).
 - **Result**: ✅ Compiles and type-checks; ESLint reports warnings only (no errors).
-- **Vercel**: Uses same build command; ensure `DATABASE_URL` is set in Vercel for runtime (migrations run separately).
+- **Vercel**: Uses same build command; set `DATABASE_URL` in Vercel (copy from `POSTGRES_PRISMA_URL` if Supabase linked) for runtime.
 
 ---
 
@@ -50,7 +50,7 @@
 
 | Variable | Required | Notes |
 |----------|----------|--------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `DATABASE_URL` | Yes | PostgreSQL URI (copy from `POSTGRES_PRISMA_URL` in Vercel if Supabase linked) |
 | `NEXTAUTH_URL` | Yes (if using auth) | e.g. `https://your-app.vercel.app` |
 | `NEXTAUTH_SECRET` | Yes (if using auth) | e.g. `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | If using Google sign-in | From Google Cloud Console |

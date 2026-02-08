@@ -12,19 +12,29 @@ Vercel serverless does **not** support SQLite. Use a hosted PostgreSQL database:
 
 Create a project and copy the **connection string** (e.g. `postgresql://...`).
 
+### Supabase connected in Vercel
+
+Vercel adds **`POSTGRES_PRISMA_URL`** when Supabase is linked, but Prisma expects **`DATABASE_URL`**. In Vercel → Settings → Environment Variables, add **`DATABASE_URL`** and set its value to the same as **`POSTGRES_PRISMA_URL`** (copy from the existing variable), then redeploy.
+
 ### Apply schema
 
-From your machine (with `DATABASE_URL` set to the new Postgres URL):
+From your machine, with `DATABASE_URL` in `.env` pointing at your Postgres DB.
 
-```bash
-npx prisma migrate deploy
+**Supabase:** Use the **direct** (non-pooling) URL for migrations/push, or you may see "prepared statement already exists". In `.env` temporarily set:
+
+```env
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require"
 ```
 
-Or, for a completely fresh DB, you can use:
+(Use port **5432**, not 6543. Same as `POSTGRES_URL_NON_POOLING` in Vercel.) Then run:
 
 ```bash
 npx prisma db push
 ```
+
+Then set `DATABASE_URL` back to the **pooled** URL (port 6543) for running the app and on Vercel.
+
+Alternatively: `npx prisma migrate deploy` (also use the direct URL in `.env` when running it).
 
 ## 2. Environment variables on Vercel
 
@@ -32,7 +42,7 @@ In **Vercel → Project → Settings → Environment Variables**, set:
 
 | Variable | Required | Notes |
 |----------|----------|--------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `DATABASE_URL` | Yes | PostgreSQL URI (if Supabase linked: copy value from `POSTGRES_PRISMA_URL`) |
 | `NEXTAUTH_URL` | Yes (if using auth) | Your Vercel URL, e.g. `https://your-app.vercel.app` |
 | `NEXTAUTH_SECRET` | Yes (if using auth) | e.g. `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` | If using Google sign-in | From Google Cloud Console |
@@ -49,7 +59,7 @@ Use **Production**, **Preview**, and **Development** as needed (at least set Pro
 
 - Connect the GitHub repo to Vercel (e.g. [madnikhan/smashd](https://github.com/madnikhan/smashd)).
 - Vercel will run `prisma generate && next build` from the build script.
-- After the first deploy, run `prisma migrate deploy` (or `db push`) once against your production `DATABASE_URL` to create tables.
+- After the first deploy, run `prisma migrate deploy` (or `db push`) once against your production Postgres (set `DATABASE_URL` in `.env` to your Supabase URI) to create tables.
 
 ## 4. Post-deploy
 
@@ -68,4 +78,4 @@ No need to run migrations in the Vercel build; run them once from your machine o
 
 ## Optional: Vercel Postgres
 
-If you use Vercel Postgres, `DATABASE_URL` is set automatically when you link the store to the project. You still need to run `prisma migrate deploy` (or `db push`) once to create the schema.
+If you use Supabase linked to Vercel, add `DATABASE_URL` (copy from `POSTGRES_PRISMA_URL`). You still need to run `prisma migrate deploy` (or `db push`) once to create the schema.

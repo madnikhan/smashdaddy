@@ -2,9 +2,12 @@
 # Vercel environment variables
 # Add these in: Vercel Dashboard → Your Project → Settings → Environment Variables
 # Replace placeholder values; leave optional vars empty if not used.
+#
+# Supabase: when linked, Vercel sets POSTGRES_PRISMA_URL but Prisma needs DATABASE_URL.
+# Add DATABASE_URL and set it to the same value as POSTGRES_PRISMA_URL, then redeploy.
 # =============================================================================
 
-# --- Required ---
+# --- Required (Prisma) ---
 DATABASE_URL=
 NEXTAUTH_URL=
 NEXTAUTH_SECRET=

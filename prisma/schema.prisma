@@ -9,7 +9,7 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-// Use PostgreSQL for production (Vercel/serverless). For local dev use Neon, Supabase, or Docker.
+// Use PostgreSQL. Set DATABASE_URL (Vercel: copy from POSTGRES_PRISMA_URL if using Supabase link).
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")

@@ -93,6 +93,7 @@ async function seedMenu() {
             calories: itemData.calories,
             preparationTime: itemData.preparationTime,
             sortOrder: 0,
+            image: itemData.image ?? null,
           },
           create: {
             id: itemData.id,
@@ -108,6 +109,7 @@ async function seedMenu() {
             calories: itemData.calories,
             preparationTime: itemData.preparationTime,
             sortOrder: 0,
+            image: itemData.image ?? null,
             categoryId: category.id,
             restaurantId: restaurant.id,
           },
